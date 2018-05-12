@@ -10,10 +10,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <time.h>
-#include "query_utils.h"
-
-#define FILE_SIZE_MAX_BYTES 35000
 
 int main(int argc, char* argv[]) {
     FILE* infile = fopen(argv[1], "rb");
@@ -27,23 +23,18 @@ int main(int argc, char* argv[]) {
     int input_file_size = ftell(infile) / sizeof(uint32_t);
     fseek(infile, 0L, SEEK_SET);
 
-    int file_segments = 0;
-
-    file_segments =  input_file_size/FILE_SIZE_MAX_BYTES;
-    
     // Allocate buffer to hold entire input file
     //
     // TODO - This does not adhere to the memory constraint in the problem statement.
     // Need to fix. No more than 35 KB of memory can be used.
-    uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * FILE_SIZE_MAX_BYTES);
-    printf("File Size: %d\n", FILE_SIZE_MAX_BYTES);
+    uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
     if (inbuffer == NULL) {
         fputs("Malloc error", stderr);
         return 1;
     }
 
     // Read entire file into buffer
-    if (fread(inbuffer, sizeof(uint32_t), FILE_SIZE_MAX_BYTES, infile) != FILE_SIZE_MAX_BYTES) {
+    if (fread(inbuffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
         fputs("File read error", stderr);
         return 1;
     }
@@ -51,22 +42,9 @@ int main(int argc, char* argv[]) {
     fclose(infile);
 
     // in-place endian swap of all elements
-    for (int i = 0; i < FILE_SIZE_MAX_BYTES; i++) {
+    for (int i = 0; i < input_file_size; i++) {
         inbuffer[i] = htonl(inbuffer[i]);
     }
-    // printf("-------------Before Sorting----------------\n");
-    // for (int i = 0; i< FILE_SIZE_MAX_BYTES; i++)
-    // {
-    //     printf("%u\n", inbuffer[i]);
-    // }
-
-    // qsort (inbuffer, FILE_SIZE_MAX_BYTES, sizeof(uint32_t), qsort_compare);
-
-    // printf("-------------After Sorting----------------\n");
-    // for (int i = 0; i< FILE_SIZE_MAX_BYTES; i++)
-    // {
-    //     printf("%u\n", inbuffer[i]);
-    // }
 
     int num_test_cases = 0;
     scanf("%d", &num_test_cases);
@@ -78,7 +56,7 @@ int main(int argc, char* argv[]) {
         // Linear scan to find the closest value from inbuffer
         uint32_t closest_val = 0;
         uint32_t closest_dist = 0xFFFFFFFF;
-        for (int j = 0; j < FILE_SIZE_MAX_BYTES; j++) {
+        for (int j = 0; j < input_file_size; j++) {
             uint32_t candidate = inbuffer[j];
             uint32_t dist = abs(candidate - query_val);
 
@@ -90,7 +68,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-       // printf("%u\n", closest_val);
+        printf("%u\n", closest_val);
     }
 
     return 0;
