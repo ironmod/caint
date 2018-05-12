@@ -26,31 +26,32 @@ int qsort_compare (const void * elem1, const void * elem2);
 
 int main(int argc, char* argv[]) {
 
-    FILE* seg_temp;
+    //
+    // User input file 
+    //
     FILE* infile = fopen(argv[1], "rb");
     if (NULL == infile) {
         printf("Could not open file %s\n", argv[1]);
         return 1;
     }
 
+    //
     // Determine input file size (number of 32-bit integers)
+    //
     fseek(infile, 0L, SEEK_END);
     int input_file_size = ftell(infile) / sizeof(uint32_t);
     fseek(infile, 0L, SEEK_SET);
 
-    uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
-    if (inbuffer == NULL) {
-        fputs("Malloc error", stderr);
-        return 1;
-    }
-    mkdir("/media/minty/PRAECLUSIO/Code/cruise/seg_temp", 0700);
     //
-    // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions
+    // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions)
     //
+    FILE* seg_temp; //temporary segment file
+
     int file_segments = 0;
 
     file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES) + 1; //figure out how many segments this needs to be broken into, +1 for the eof
     printf("Number of bytes: %u\nNumber of segs: %u\n", input_file_size, file_segments);
+    uint32_t user_in_buffer[FILE_SIZE_MAX_BYTES]; //buffer to be used for temp storing of the bins
 
     //
     //  This is to handle input files that can fit within RAM
@@ -69,46 +70,29 @@ int main(int argc, char* argv[]) {
     }
 
     //
-    // Read through the binary, 35KB at a time, and store the results
-    //  into segment files, if needed
+    // Loop through the entire input file and break the file up into
+    //  smaller segments - if it is more than 35KB
     //
     for(int i=0; i < file_segments; i++)
     {
+        //
+        // Store no more than 35KB per segment file
+        //
         sprintf(smallFileName, "%s%d.bin", segFileName, i);
         seg_temp = fopen(smallFileName, "wb");
 
-        if (fread(inbuffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
+        if (fread(user_in_buffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
             fputs("File read error\n", stderr);
             return 1;
         }
-        //
-        // in-place endian swap of all elements
-        // TODO: can this be combined into the lower loop?
-        //
-        for (int j = 0; j < input_file_size; j++) {
-            inbuffer[j] = htonl(inbuffer[j]);
-        }
 
         //
-        // Sort the buffer, before storing it to speed up the search later
+        // Write to the segment file and close it, on to the next one!
         //
-        qsort (inbuffer, input_file_size, sizeof(uint32_t), qsort_compare);
-
-        //
-        // Finally store the buffer into it's seg file
-        //
-        for (int j = 0; j < input_file_size; j++)
-        {
-            fprintf(seg_temp, "%u\n", inbuffer[j]);
-           // printf("%u\n", inbuffer[j]);
-        }
-
-        //
-        // Close the file and move onto the next
-        //
+        fwrite(user_in_buffer, sizeof(uint32_t), input_file_size, seg_temp);
         fclose(seg_temp);
-    }
 
+    }
     //
     // Done with the user input file 
     //
@@ -118,10 +102,170 @@ int main(int argc, char* argv[]) {
     // TODO: External merge sort the files to drastically speed up the searching
     //
 
+/******************************************* Go through test cases***************************************************************/
+
     //
     // Now we need to start reading back and searching through the files we just created
     //
     for(int segfile_index = 0; segfile_index < file_segments; segfile_index++)
+    {
+        seg_temp = fopen("seg_0.bin", "r");
+        if (NULL == seg_temp) {
+            printf("Could not open segtemp readback file %s\n", argv[1]);
+            return 1;
+        }
+
+        //
+        // Determine input file size (number of 32-bit integers)
+        // TODO: this should only be needed for incomplete 35KB files
+        //
+        fseek(seg_temp, 0L, SEEK_END);
+        int seg_file_size = ftell(seg_temp) / sizeof(uint32_t);
+        fseek(seg_temp, 0L, SEEK_SET);
+
+        uint32_t* segbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
+        if (segbuffer == NULL) {
+            fputs("Malloc error", stderr);
+            return 1;
+        }
+        // Read entire file into buffer
+        if (fread(segbuffer, sizeof(uint32_t), seg_file_size, seg_temp) != input_file_size) {
+            fputs("File read error", stderr);
+            return 1;
+        }
+        //
+        // in-place endian swap of all elements
+        //  TODO: combine this with other loop?
+        //
+        for (int i = 0; i < seg_file_size; i++) {
+            segbuffer[i] = htonl(segbuffer[i]);
+        }
+
+        //
+        // Sort the buffer to speed up searching
+        //
+        qsort (segbuffer, seg_file_size, sizeof(uint32_t), qsort_compare);
+
+        // for(int i=0; i < seg_file_size; i++)
+        // {
+        //     printf("%u\n", segbuffer[i]);  
+        // }
+
+        int num_test_cases = 0;
+        scanf("%d", &num_test_cases);
+
+        for (int i = 0; i < num_test_cases; i++) {
+            uint32_t query_val = 0;
+            scanf("%u", &query_val);
+
+            // Linear scan to find the closest value from inbuffer
+            uint32_t closest_val = 0;
+            uint32_t closest_dist = 0xFFFFFFFF;
+            for (int j = 0; j < input_file_size; j++) {
+                uint32_t candidate = segbuffer[j];
+                uint32_t dist = abs(candidate - query_val);
+
+                // Break ties by choosing the lower value
+                if ((dist == closest_dist && candidate < closest_val) ||
+                    (dist < closest_dist)) {
+                    closest_val = candidate;
+                    closest_dist = dist;
+                }
+            }
+            printf("%u\n", closest_val);
+        }
+
+    }
+
+
+
+
+
+    // uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
+    // if (inbuffer == NULL) {
+    //     fputs("Malloc error", stderr);
+    //     return 1;
+    // }
+
+    // //
+    // // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions
+    // //
+    // int file_segments = 0;
+
+    // file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES) + 1; //figure out how many segments this needs to be broken into, +1 for the eof
+    // printf("Number of bytes: %u\nNumber of segs: %u\n", input_file_size, file_segments);
+
+    // //
+    // //  This is to handle input files that can fit within RAM
+    // //  
+    // // TODO: FIgure out a different way to handle this
+    // //
+    // if(file_segments == 1)
+    // {
+    //     // Determine input file size (number of 32-bit integers)
+    //     fseek(infile, 0L, SEEK_END);
+    //     int input_file_size = ftell(infile) / sizeof(uint32_t);
+    //     fseek(infile, 0L, SEEK_SET);
+    // }
+    // else{
+    //     input_file_size = FILE_SIZE_MAX_BYTES;
+    // }
+
+    // //
+    // // Read through the binary, 35KB at a time, and store the results
+    // //  into segment files, if needed
+    // //
+    // for(int i=0; i < file_segments; i++)
+    // {
+    //     sprintf(smallFileName, "%s%d.bin", segFileName, i);
+    //     seg_temp = fopen(smallFileName, "wb");
+
+    //     if (fread(inbuffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
+    //         fputs("File read error\n", stderr);
+    //         return 1;
+    //     }
+    //     //
+    //     // in-place endian swap of all elements
+    //     // TODO: can this be combined into the lower loop?
+    //     //
+    //     for (int j = 0; j < input_file_size; j++) {
+    //         inbuffer[j] = htonl(inbuffer[j]);
+    //     }
+
+    //     //
+    //     // Sort the buffer, before storing it to speed up the search later
+    //     //
+    //     qsort (inbuffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+    //     //
+    //     // Finally store the buffer into it's seg file
+    //     //
+    //     for (int j = 0; j < input_file_size; j++)
+    //     {
+    //         fprintf(seg_temp, "%u\n", inbuffer[j]);
+    //        // printf("%u\n", inbuffer[j]);
+    //     }
+
+    //     //
+    //     // Close the file and move onto the next
+    //     //
+    //     fclose(seg_temp);
+    // }
+
+    // //
+    // // Done with the user input file 
+    // //
+    // fclose(infile);
+
+    // //
+    // // TODO: External merge sort the files to drastically speed up the searching
+    // //
+    
+/******************************************* Go through test cases***************************************************************/
+    //
+    // Now we need to start reading back and searching through the files we just created
+    //
+ /*   for(int segfile_index = 0; segfile_index < file_segments; segfile_index++)
     {
         seg_temp = fopen("seg_0.bin", "r");
         if (NULL == seg_temp) {
@@ -136,20 +280,50 @@ int main(int argc, char* argv[]) {
         int seg_file_size = ftell(seg_temp) / sizeof(uint32_t);
         fseek(seg_temp, 0L, SEEK_SET);
 
-        uint32_t* segbuffer = (uint32_t*)malloc(sizeof(uint32_t) * seg_file_size);
+        //uint32_t* segbuffer = (uint32_t*)malloc(sizeof(uint32_t) * seg_file_size);
+        char segbuffer[35000];
         if (segbuffer == NULL) {
-            fputs("Malloc error", stderr);
+            fputs("Malloc error", stderr); /*   int num_test_cases = 0;
+    scanf("%d", &num_test_cases);
+
+    for (int i = 0; i < num_test_cases; i++) {
+        uint32_t query_val = 0;
+        scanf("%u", &query_val);
+
+        // Linear scan to find the closest value from inbuffer
+        uint32_t closest_val = 0;
+        uint32_t closest_dist = 0xFFFFFFFF;
+        for (int j = 0; j < input_file_size; j++) {
+            uint32_t candidate = inbuffer[j];
+            uint32_t dist = abs(candidate - query_val);
+
+            // Break ties by choosing the lower value
+            if ((dist == closest_dist && candidate < closest_val) ||
+                (dist < closest_dist)) {
+                closest_val = candidate;
+                closest_dist = dist;
+            }
+        }
+
+       // printf("%u\n", closest_val);
+    }
             return 1;
         }
 
-        // Read entire file into buffer
-        if (fread(segbuffer, sizeof(uint32_t), seg_file_size, infile) != seg_file_size) {
-            fputs("File read error", stderr);
-            return 1;
+        // // Read entire file into buffer
+        // if (fread(segbuffer, sizeof(uint32_t), seg_file_size, seg_temp) != seg_file_size) {
+        //     fputs("File read error", stderr);
+        //     return 1;
+        // }
+
+        while(fgets(segbuffer, sizeof(segbuffer), seg_temp) != NULL)
+        {
+
         }
+
         // in-place endian swap of all elements
         for (int i = 0; i < seg_file_size; i++) {
-            segbuffer[i] = htonl(segbuffer[i]);
+       //     segbuffer[i] = htonl(segbuffer[i]);
         }
         for(int i=0; i < seg_file_size; i++)
         {
@@ -180,6 +354,7 @@ int main(int argc, char* argv[]) {
 
         printf("%u\n", closest_val);
     }
+    */
 /*
     //
     // Break the large binary into smaller little bitty binaries so that they can be RAM Loaded (<35KB)
@@ -299,4 +474,78 @@ int qsort_compare (const void * elem1, const void * elem2)
     if (f > s) return  1;
     if (f < s) return -1;
     return 0;
+}
+
+void ram_seg_text_build(void)
+{
+   /* //
+    // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions
+    //
+    int file_segments = 0;
+
+    file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES) + 1; //figure out how many segments this needs to be broken into, +1 for the eof
+    printf("Number of bytes: %u\nNumber of segs: %u\n", input_file_size, file_segments);
+
+    //
+    //  This is to handle input files that can fit within RAM
+    //  
+    // TODO: FIgure out a different way to handle this
+    //
+    if(file_segments == 1)
+    {
+        // Determine input file size (number of 32-bit integers)
+        fseek(infile, 0L, SEEK_END);
+        int input_file_size = ftell(infile) / sizeof(uint32_t);
+        fseek(infile, 0L, SEEK_SET);
+    }
+    else{
+        input_file_size = FILE_SIZE_MAX_BYTES;
+    }
+
+    //
+    // Read through the binary, 35KB at a time, and store the results
+    //  into segment files, if needed
+    //
+    for(int i=0; i < file_segments; i++)
+    {
+        sprintf(smallFileName, "%s%d.bin", segFileName, i);
+        seg_temp = fopen(smallFileName, "wb");
+
+        if (fread(inbuffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
+            fputs("File read error\n", stderr);
+            return 1;
+        }
+        //
+        // in-place endian swap of all elements
+        // TODO: can this be combined into the lower loop?
+        //
+        for (int j = 0; j < input_file_size; j++) {
+            inbuffer[j] = htonl(inbuffer[j]);
+        }
+
+        //
+        // Sort the buffer, before storing it to speed up the search later
+        //
+        qsort (inbuffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+        //
+        // Finally store the buffer into it's seg file
+        //
+        for (int j = 0; j < input_file_size; j++)
+        {
+            fprintf(seg_temp, "%u\n", inbuffer[j]);
+           // printf("%u\n", inbuffer[j]);
+        }
+
+        //
+        // Close the file and move onto the next
+        //
+        fclose(seg_temp);
+    }
+
+    //
+    // Done with the user input file 
+    //
+    fclose(infile);
+    */
 }
