@@ -11,6 +11,8 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+int qsort_compare (const void * elem1, const void * elem2); 
+
 int main(int argc, char* argv[]) {
     FILE* infile = fopen(argv[1], "rb");
     if (NULL == infile) {
@@ -28,6 +30,7 @@ int main(int argc, char* argv[]) {
     // TODO - This does not adhere to the memory constraint in the problem statement.
     // Need to fix. No more than 35 KB of memory can be used.
     uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
+    printf("%d\n", input_file_size);
     if (inbuffer == NULL) {
         fputs("Malloc error", stderr);
         return 1;
@@ -44,6 +47,19 @@ int main(int argc, char* argv[]) {
     // in-place endian swap of all elements
     for (int i = 0; i < input_file_size; i++) {
         inbuffer[i] = htonl(inbuffer[i]);
+    }
+    printf("-------------Before Sorting----------------\n");
+    for (int i = 0; i< input_file_size; i++)
+    {
+        printf("%u\n", inbuffer[i]);
+    }
+
+    qsort (inbuffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+    printf("-------------After Sorting----------------\n");
+    for (int i = 0; i< input_file_size; i++)
+    {
+        printf("%u\n", inbuffer[i]);
     }
 
     int num_test_cases = 0;
@@ -68,8 +84,19 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        printf("%u\n", closest_val);
+       // printf("%u\n", closest_val);
     }
 
+    return 0;
+}
+
+
+
+int qsort_compare (const void * elem1, const void * elem2) 
+{
+    int f = *((int*)elem1);
+    int s = *((int*)elem2);
+    if (f > s) return  1;
+    if (f < s) return -1;
     return 0;
 }
