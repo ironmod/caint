@@ -58,14 +58,8 @@ int main(int argc, char* argv[]) {
     //  
     // TODO: FIgure out a different way to handle this
     //
-    if(file_segments == 1)
+    if(file_segments > 1)
     {
-        // Determine input file size (number of 32-bit integers)
-        fseek(infile, 0L, SEEK_END);
-        int input_file_size = ftell(infile) / sizeof(uint32_t);
-        fseek(infile, 0L, SEEK_SET);
-    }
-    else{
         input_file_size = FILE_SIZE_MAX_BYTES;
     }
 
@@ -84,6 +78,41 @@ int main(int argc, char* argv[]) {
         if (fread(user_in_buffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) {
             fputs("File read error\n", stderr);
             return 1;
+        }
+        //
+        // in-place endian swap of all elements
+        //  TODO: combine this with other loop?
+        //
+        for (int i = 0; i < input_file_size; i++) {
+            user_in_buffer[i] = htonl(user_in_buffer[i]);
+        }
+        //
+        // Sort the buffer to speed up searching
+        //
+        qsort (user_in_buffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+        int num_test_cases = 0;
+        scanf("%d", &num_test_cases);
+
+        for (int i = 0; i < num_test_cases; i++) {
+            uint32_t query_val = 0;
+            scanf("%u", &query_val);
+
+            // Linear scan to find the closest value from inbuffer
+            uint32_t closest_val = 0;
+            uint32_t closest_dist = 0xFFFFFFFF;
+            for (int j = 0; j < input_file_size; j++) {
+                uint32_t candidate = user_in_buffer[j];
+                uint32_t dist = abs(candidate - query_val);
+
+                // Break ties by choosing the lower value
+                if ((dist == closest_dist && candidate < closest_val) ||
+                    (dist < closest_dist)) {
+                    closest_val = candidate;
+                    closest_dist = dist;
+                }
+            }
+            printf("%u\n", closest_val);
         }
 
         //
@@ -133,23 +162,11 @@ int main(int argc, char* argv[]) {
             fputs("File read error", stderr);
             return 1;
         }
-        //
-        // in-place endian swap of all elements
-        //  TODO: combine this with other loop?
-        //
-        for (int i = 0; i < seg_file_size; i++) {
-            segbuffer[i] = htonl(segbuffer[i]);
+
+        for(int i=0; i < seg_file_size; i++)
+        {
+        //    printf("%u\n", segbuffer[i]);  
         }
-
-        //
-        // Sort the buffer to speed up searching
-        //
-        qsort (segbuffer, seg_file_size, sizeof(uint32_t), qsort_compare);
-
-        // for(int i=0; i < seg_file_size; i++)
-        // {
-        //     printf("%u\n", segbuffer[i]);  
-        // }
 
         int num_test_cases = 0;
         scanf("%d", &num_test_cases);
@@ -172,7 +189,7 @@ int main(int argc, char* argv[]) {
                     closest_dist = dist;
                 }
             }
-            printf("%u\n", closest_val);
+            //printf("%u\n", closest_val);
         }
 
     }
