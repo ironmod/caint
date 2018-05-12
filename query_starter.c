@@ -10,8 +10,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 int main(int argc, char* argv[]) {
+    clock_t begin = clock();
     FILE* infile = fopen(argv[1], "rb");
     if (NULL == infile) {
         printf("Could not open file %s\n", argv[1]);
@@ -70,6 +72,8 @@ int main(int argc, char* argv[]) {
 
         printf("%u\n", closest_val);
     }
-
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Run Time: %f", time_spent);
     return 0;
 }
