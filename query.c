@@ -28,8 +28,6 @@ uint32_t seg_meta[110][2]; //min/max for each segment file
 int main(int argc, char* argv[]) {
     clock_t begin = clock();
     FILE *qlog_fp = fopen("logfile.txt", "w"); //query log for cool stuffs
-
-
     //
     // User input file 
     //
@@ -43,38 +41,30 @@ int main(int argc, char* argv[]) {
     // Determine input file size (number of 32-bit integers)
     //
     fseek(infile, 0L, SEEK_END);
-    int input_file_size = ftell(infile) / sizeof(uint32_t);
+    int input_file_size = ftell(infile);/// sizeof(uint32_t);
     fseek(infile, 0L, SEEK_SET);
 
     //
     // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions)
     //
     int file_segments = 0;
-    if(input_file_size > FILE_SIZE_MAX_BYTES)
-    {
+    //if(input_file_size > FILE_SIZE_MAX_BYTES)
+    //{
         file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES); //figure out how many segments this needs to be broken into, +1 for the eof
-        input_file_size = FILE_SIZE_MAX_BYTES;
-    }
-    else
+        //input_file_size = FILE_SIZE_MAX_BYTES/4;
+    //}
+    //else
+    if(file_segments ==0)
+    {
         file_segments = 1;
-    fprintf(qlog_fp, "Number of bytes: %u\nNumber of segs: %u\n", input_file_size, file_segments);
+        input_file_size = input_file_size/sizeof(uint32_t);
+    }
+    else{
+        file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES); //figure out how many segments this needs to be broken into, +1 for the eof
+        input_file_size = FILE_SIZE_MAX_BYTES/sizeof(uint32_t);
+    }
+    fprintf(qlog_fp, "Number of variables: %u\nNumber of segs: %u\n", input_file_size, file_segments);
     uint32_t user_in_buffer[FILE_SIZE_MAX_BYTES]; //buffer to be used for temp storing of the bins
-
-    //
-    // Get the user test cases and start looping through each 35k block at a time
-    //
-    int num_test_cases = 0;
-    scanf("%d", &num_test_cases);
-    if(num_test_cases > 10000)
-    {
-        printf("You said no more than 10k test cases!!!");
-        return 1;
-    }
-    else if(num_test_cases == 0)
-    {
-        printf("Why you no enter test case!");
-        return 1;
-    }
 
     FILE *seg_temp;
     //
@@ -121,6 +111,22 @@ int main(int argc, char* argv[]) {
     //
     uint32_t seg_buffer[FILE_SIZE_MAX_BYTES]; //buffer to be used for temp storing of the bins
 
+    //
+    // Get the user test cases and start looping through each 35k block at a time
+    //
+    int num_test_cases = 0;
+    scanf("%d", &num_test_cases);
+    if(num_test_cases > 10000)
+    {
+        printf("You said no more than 10k test cases!!!");
+        return 1;
+    }
+    else if(num_test_cases == 0)
+    {
+        printf("Why you no enter test case!");
+        return 1;
+    }
+
     for (int i = 0; i < num_test_cases; i++) 
     {
         uint32_t query_val = 0;
@@ -128,20 +134,22 @@ int main(int argc, char* argv[]) {
         // Linear scan to find the closest value from inbuffer
         uint32_t closest_val = 0;
         uint32_t closest_dist = 0xFFFFFFFF;
-            uint32_t some_val = 0;
         //
         // Loop through the entire input file and break the file up into
         //  smaller segments - if it is more than 35KB
         //
-      //  file_segments = 10;
+        //file_segments = 1;
         for(int j=0; j < file_segments; j++)
         {
+            uint32_t closest_seg_val = 0;
             sprintf(smallFileName, "%s%d.bin", segFileName, j);
-            seg_temp = fopen(smallFileName, "r");
+            seg_temp = fopen(smallFileName, "rb");
+            //seg_temp = fopen("seg_0.bin", "rb");
 
             fseek(seg_temp, 0L, SEEK_END);
             input_file_size = ftell(seg_temp) / sizeof(uint32_t);
             fseek(seg_temp, 0L, SEEK_SET);
+            //input_file_size = FILE_SIZE_MAX_BYTES/sizeof(uint32_t);
 
             if (fread(seg_buffer, sizeof(uint32_t), input_file_size, seg_temp) != input_file_size) 
             {
@@ -149,27 +157,14 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            // for (int k = 0; k < input_file_size; k++) 
-            // {
-            //     uint32_t candidate = seg_buffer[k];
-            //     uint32_t dist = abs(candidate - query_val);
-            //     //printf("%u\n",seg_buffer[k]);
-            //     // Break ties by choosing the lower value
-            //     if ((dist == closest_dist && candidate < closest_val) ||
-            //         (dist < closest_dist)) 
-            //     {
-            //         closest_val = candidate;
-            //         closest_dist = dist;
-            //     }
-            // }
-
-            closest_val = binary_search(seg_buffer, 0, input_file_size, query_val);
-           // closest_val = seg_buffer[some_val];
-            
+            closest_seg_val = binary_search(seg_buffer, 0, input_file_size, query_val);
+            if(closest_seg_val < closest_dist)
+            {
+                closest_dist = closest_seg_val;
+            }
+            fclose(seg_temp);          
         }
-        printf("Returned: %u\n\n", closest_val);
-        //printf("BS %u\n", some_val);
-        fclose(seg_temp);
+        printf("%u\n", closest_dist);
     }
 
     clock_t end = clock();
@@ -194,11 +189,11 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
     {
         printf("%u\n", sorted_list[i]);
     }*/
-    printf("Searching for: %u\n", element);
+    //printf("Searching for: %u\n", element);
     while (low <= high)
     {
         middle = low + (high - low)/2;
-        printf("Mid: %u\n", middle);
+        //printf("Mid: %u\n", middle);
         if (element > sorted_list[middle])
         {
             last_val = middle;
@@ -210,17 +205,13 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
         {
             last_val = middle;
             high = middle - 1;
-
-            //printf("High %d\n", middle);
         }
         else
         {
-            //printf("Returning Middle: %u\n", middle);
-
             return middle;
         }
     }
-            //printf("Last Index: %u\n", last_val);
+    
     if(last_val == 0)
     {
         return sorted_list[last_val];
@@ -229,101 +220,27 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
     {
         return sorted_list[max-1];
     }
-
-    //else if(element > sorted_list[last_val])
     else
     {
-        //return sorted_list[last_val-1];
-    //}
-
+        //determine which point is closer to the element
+        // and return that location
         uint32_t dist1 = abs( sorted_list[last_val] - element);
         uint32_t dist2 = abs( sorted_list[last_val+1] - element);
         uint32_t dist3 = abs( sorted_list[last_val-1] - element);
-        printf("dist1: %u dist2: %u dist3: %u\n", dist1, dist2, dist3);
+        //printf("dist1: %u dist2: %u dist3: %u\n", dist1, dist2, dist3);
+
         if ( (dist1 > dist2) && (dist2 < dist3))
-        {
             return sorted_list[last_val+1];
-        }
+
         else if( (dist2 > dist1) && (dist1 < dist3))
-        {
             return sorted_list[last_val];
-        }
+
         else
             return sorted_list[last_val-1];
-        // // else if (dist2 > dist3)
-        // // {
-        // //     return sorted_list[last_val];
-        // // }
-        // else if (dist1 > dist3)
-        // {
-        //     return sorted_list[last_val];
-        // }
-        // else{
-        //     return sorted_list[last_val-1];
-        // }
     }
-    // else if( sorted_list[middle] > element)
-    // {
-    //     //printf("Returning High: %u\n", closest_high);       
-    //     //printf("Last Val: %u\n", last_val);
-    //     //    printf("Returning Middle: %u\n", middle);
-    //     //printf("retruning low\n");
-    //     //printf("Less Last Index: %u\n", middle);
-    //     return sorted_list[middle];
-    // }
-    // // else if(sorted_list[middle] > element)
-    // // {
-    // //     //printf("Greater Last Index: %u\n", middle);
 
-    // //     return sorted_list[middle+1];
-    // // }
-    // else   
-    // {
-
-    //     //printf("Returning Low: %u\n", closest_low);
-    //     //printf("Last Val: %u\n", last_val);
-    //     //    printf("Returning Middle: %u\n", middle);
-    //     //printf("returning high\n");
-    //     //printf("Else Last Index: %u\n", middle);
-
-    //     return sorted_list[middle+1];
-
-    // } 
-//    return 0;
-}
-
-int BinarySearch(int sorted_list[], int Value,char *fraction)
-{
-    int first, last, middle;
-    first = 0;
-    last = 101-1;
-    middle = (first+last)/2;
- 
-    while(first <= last)
-    {
-        if ( sorted_list[middle] < Value )
-        {
-            first = middle + 1;
-        }
-        else if ( sorted_list[middle] == Value )
-        {
-            *fraction = 0;  // Value Matched
-            return middle;
-        }
-        else
-        {
-            last = middle - 1;
-        }
-        middle = (first + last)/2;
-    }
- 
-    if ( first > last )
-    {
-        int diff = sorted_list[middle+1]-sorted_list[middle];
-        *fraction = (Value-sorted_list[middle])*10/diff;
-    }
-    return middle;
-}
+    return 0;
+};
 
 int qsort_compare (const void * elem1, const void * elem2) 
 {
@@ -334,7 +251,19 @@ int qsort_compare (const void * elem1, const void * elem2)
     return 0;
 }
 
-void ram_seg_text_build(void)
+int linear_search(void)
 {
-
+    // for (int k = 0; k < input_file_size; k++) 
+    // {
+    //     uint32_t candidate = seg_buffer[k];
+    //     uint32_t dist = abs(candidate - query_val);
+    //     //printf("%u\n",seg_buffer[k]);
+    //     // Break ties by choosing the lower value
+    //     if ((dist == closest_dist && candidate < closest_val) ||
+    //         (dist < closest_dist)) 
+    //     {
+    //         closest_val = candidate;
+    //         closest_dist = dist;
+    //     }
+    // }
 }
