@@ -1,3 +1,0 @@
-Number of bytes: 8
-Number of segs: 0
-Run Time: 0.000058

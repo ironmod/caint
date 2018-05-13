@@ -1,0 +1,32 @@
+Number of bytes: 35000
+Number of segs: 29
+Segment 0 Min: 292 Max: 33552829
+Segment 1 Min: 268 Max: 33554355
+Segment 2 Min: 73 Max: 33553700
+Segment 3 Min: 694 Max: 33553959
+Segment 4 Min: 823 Max: 33554331
+Segment 5 Min: 874 Max: 33554321
+Segment 6 Min: 61 Max: 33553867
+Segment 7 Min: 1049 Max: 33553797
+Segment 8 Min: 2990 Max: 33554055
+Segment 9 Min: 470 Max: 33551142
+Segment 10 Min: 1078 Max: 33551363
+Segment 11 Min: 296 Max: 33549644
+Segment 12 Min: 618 Max: 33553513
+Segment 13 Min: 240 Max: 33553851
+Segment 14 Min: 361 Max: 33553743
+Segment 15 Min: 3875 Max: 33553054
+Segment 16 Min: 226 Max: 33554431
+Segment 17 Min: 1348 Max: 33554261
+Segment 18 Min: 2455 Max: 33553471
+Segment 19 Min: 2996 Max: 33553717
+Segment 20 Min: 1285 Max: 33552375
+Segment 21 Min: 728 Max: 33553651
+Segment 22 Min: 224 Max: 33554396
+Segment 23 Min: 750 Max: 33553912
+Segment 24 Min: 1797 Max: 33554398
+Segment 25 Min: 1653 Max: 33553081
+Segment 26 Min: 59 Max: 33553361
+Segment 27 Min: 2254 Max: 33553299
+Segment 28 Min: 387 Max: 33554263
+Run Time: 0.209430
