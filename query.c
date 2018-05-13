@@ -59,10 +59,35 @@ int main(int argc, char* argv[]) {
         input_file_size = FILE_SIZE_MAX_BYTES;
     }
 
+        //
+        // Loop through the entire input file and break the file up into
+        //  smaller segments - if it is more than 35KB
+        //
+        for(int j=0; j < file_segments; j++)
+        {
+
+            if (fread(user_in_buffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) 
+            {
+                fputs("File read error\n", stderr);
+                return 1;
+            }
+
+            //
+            // Sort the buffer to speed up searching
+            //
+            qsort (user_in_buffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+            for (int k = 0; k < input_file_size; k++) 
+            {
+                user_in_buffer[k] = htonl(user_in_buffer[k]);
+                printf("%u\n", user_in_buffer[k]);
+            }
+        }
+
     //
     // Get the user test cases and start looping through each 35k block at a time
     //
-    int num_test_cases = 0;
+  /*  int num_test_cases = 0;
     scanf("%d", &num_test_cases);
     printf("num test cases: %d\n", num_test_cases);
     for (int i = 0; i < num_test_cases; i++) 
@@ -109,7 +134,7 @@ int main(int argc, char* argv[]) {
         }
         printf("%u\n", closest_val);
     }
-
+*/
     fclose(infile);
 
     clock_t end = clock();
