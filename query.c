@@ -162,6 +162,7 @@ int main(int argc, char* argv[]) {
             {
                 closest_dist = closest_seg_val;
             }
+            
             fclose(seg_temp);          
         }
         printf("%u\n", closest_dist);
