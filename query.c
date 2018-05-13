@@ -80,12 +80,12 @@ int main(int argc, char* argv[]) {
     //
     for(int j=0; j < file_segments; j++)
     {
-        sprintf(smallFileName, "%s%d", segFileName, j);
+        sprintf(smallFileName, "%s%d.bin", segFileName, j);
         seg_temp = fopen(smallFileName, "wb");
 
         if (fread(user_in_buffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) 
         {
-            fputs("File read error\n", stderr);
+            fputs("File read error: SegBuilder\n", stderr);
             return 1;
         }
 
@@ -104,20 +104,20 @@ int main(int argc, char* argv[]) {
 
         fprintf(qlog_fp, "Segment %d Min: %u Max: %u\n", j,  seg_meta[j][0], seg_meta[j][1]);
 
-        for (int k = 0; k < input_file_size; k++) 
-        {
+        //for (int k = 0; k < input_file_size; k++) 
+        //{
             //printf("%u\n", user_in_buffer[k]);
-            fprintf(seg_temp, "%u\n", user_in_buffer[k]); //TODO: need to change this to fwrite for binary
-        }
+            //fprintf(seg_temp, "%u", user_in_buffer[k]); //TODO: need to change this to fwrite for binary
+        fwrite(&user_in_buffer, sizeof(uint32_t), input_file_size, seg_temp);
+        //}
         fclose(seg_temp);
     }
 
     //
     // Get the user test cases and start looping through each 35k block at a time
     //
-  /*  int num_test_cases = 0;
-    scanf("%d", &num_test_cases);
-    printf("num test cases: %d\n", num_test_cases);
+    uint32_t seg_buffer[FILE_SIZE_MAX_BYTES]; //buffer to be used for temp storing of the bins
+
     for (int i = 0; i < num_test_cases; i++) 
     {
         uint32_t query_val = 0;
@@ -125,7 +125,6 @@ int main(int argc, char* argv[]) {
         // Linear scan to find the closest value from inbuffer
         uint32_t closest_val = 0;
         uint32_t closest_dist = 0xFFFFFFFF;
-        fseek(infile, 0L, SEEK_SET);//reset to begining of file
 
         //
         // Loop through the entire input file and break the file up into
@@ -133,24 +132,24 @@ int main(int argc, char* argv[]) {
         //
         for(int j=0; j < file_segments; j++)
         {
+            sprintf(smallFileName, "%s%d.bin", segFileName, j);
+            seg_temp = fopen(smallFileName, "r");
 
-            if (fread(user_in_buffer, sizeof(uint32_t), input_file_size, infile) != input_file_size) 
+            fseek(seg_temp, 0L, SEEK_END);
+            input_file_size = ftell(seg_temp) / sizeof(uint32_t);
+            fseek(seg_temp, 0L, SEEK_SET);
+
+            if (fread(seg_buffer, sizeof(uint32_t), input_file_size, seg_temp) != input_file_size) 
             {
-                fputs("File read error\n", stderr);
+                fputs("File read error: SegReader\n", stderr);
                 return 1;
             }
 
-            //
-            // Sort the buffer to speed up searching
-            //
-         //   qsort (user_in_buffer, input_file_size, sizeof(uint32_t), qsort_compare);
-
             for (int k = 0; k < input_file_size; k++) 
             {
-                user_in_buffer[k] = htonl(user_in_buffer[k]);
-                uint32_t candidate = user_in_buffer[k];
+                uint32_t candidate = seg_buffer[k];
                 uint32_t dist = abs(candidate - query_val);
-
+                //printf("%u\n",seg_buffer[k]);
                 // Break ties by choosing the lower value
                 if ((dist == closest_dist && candidate < closest_val) ||
                     (dist < closest_dist)) 
@@ -161,9 +160,8 @@ int main(int argc, char* argv[]) {
             }
         }
         printf("%u\n", closest_val);
+        fclose(seg_temp);
     }
-*/
-    fclose(infile);
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
