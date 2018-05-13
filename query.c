@@ -13,13 +13,16 @@
 #include <time.h>
 #include "query_utils.h"
 
+int qsort_compare (const void * elem1, const void * elem2); 
+uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t element);
+
 #define FILE_SIZE_MAX_BYTES 35000
 
 char segFileName[20] = "seg_";
 char smallFileName[260];
 char line[FILE_SIZE_MAX_BYTES];
 int accum = 0;
-int qsort_compare (const void * elem1, const void * elem2); 
+
 uint32_t seg_meta[110][2]; //min/max for each segment file
 
 int main(int argc, char* argv[]) {
@@ -125,11 +128,12 @@ int main(int argc, char* argv[]) {
         // Linear scan to find the closest value from inbuffer
         uint32_t closest_val = 0;
         uint32_t closest_dist = 0xFFFFFFFF;
-
+            uint32_t some_val = 0;
         //
         // Loop through the entire input file and break the file up into
         //  smaller segments - if it is more than 35KB
         //
+      //  file_segments = 10;
         for(int j=0; j < file_segments; j++)
         {
             sprintf(smallFileName, "%s%d.bin", segFileName, j);
@@ -145,21 +149,26 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            for (int k = 0; k < input_file_size; k++) 
-            {
-                uint32_t candidate = seg_buffer[k];
-                uint32_t dist = abs(candidate - query_val);
-                //printf("%u\n",seg_buffer[k]);
-                // Break ties by choosing the lower value
-                if ((dist == closest_dist && candidate < closest_val) ||
-                    (dist < closest_dist)) 
-                {
-                    closest_val = candidate;
-                    closest_dist = dist;
-                }
-            }
+            // for (int k = 0; k < input_file_size; k++) 
+            // {
+            //     uint32_t candidate = seg_buffer[k];
+            //     uint32_t dist = abs(candidate - query_val);
+            //     //printf("%u\n",seg_buffer[k]);
+            //     // Break ties by choosing the lower value
+            //     if ((dist == closest_dist && candidate < closest_val) ||
+            //         (dist < closest_dist)) 
+            //     {
+            //         closest_val = candidate;
+            //         closest_dist = dist;
+            //     }
+            // }
+
+            closest_val = binary_search(seg_buffer, 0, input_file_size, query_val);
+           // closest_val = seg_buffer[some_val];
+            
         }
-        printf("%u\n", closest_val);
+        printf("Returned: %u\n\n", closest_val);
+        //printf("BS %u\n", some_val);
         fclose(seg_temp);
     }
 
@@ -172,20 +181,148 @@ int main(int argc, char* argv[]) {
 
 /****************************** Utilities *********************************************************/
 
-int binary_search(int sorted_list[], int low, int high, int element)
+uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t element)
 {
-    int middle;
+    uint32_t middle=0;
+    uint32_t closest=0;
+    uint32_t closest_low=0;
+    uint32_t closest_high=0;
+    int last_val = 0;
+    int max = high;
+    uint32_t dist=0;
+   /* for (int i=0; i<high; i++)
+    {
+        printf("%u\n", sorted_list[i]);
+    }*/
+    printf("Searching for: %u\n", element);
     while (low <= high)
     {
         middle = low + (high - low)/2;
+        printf("Mid: %u\n", middle);
         if (element > sorted_list[middle])
+        {
+            last_val = middle;
             low = middle + 1;
+            closest_low = sorted_list[middle];
+            //printf("Low %d\n", middle);
+        }
         else if (element < sorted_list[middle])
+        {
+            last_val = middle;
             high = middle - 1;
+
+            //printf("High %d\n", middle);
+        }
         else
+        {
+            //printf("Returning Middle: %u\n", middle);
+
             return middle;
+        }
     }
-    return -1;
+            //printf("Last Index: %u\n", last_val);
+    if(last_val == 0)
+    {
+        return sorted_list[last_val];
+    }
+    else if( last_val == max)
+    {
+        return sorted_list[max-1];
+    }
+
+    //else if(element > sorted_list[last_val])
+    else
+    {
+        //return sorted_list[last_val-1];
+    //}
+
+        uint32_t dist1 = abs( sorted_list[last_val] - element);
+        uint32_t dist2 = abs( sorted_list[last_val+1] - element);
+        uint32_t dist3 = abs( sorted_list[last_val-1] - element);
+        printf("dist1: %u dist2: %u dist3: %u\n", dist1, dist2, dist3);
+        if ( (dist1 > dist2) && (dist2 < dist3))
+        {
+            return sorted_list[last_val+1];
+        }
+        else if( (dist2 > dist1) && (dist1 < dist3))
+        {
+            return sorted_list[last_val];
+        }
+        else
+            return sorted_list[last_val-1];
+        // // else if (dist2 > dist3)
+        // // {
+        // //     return sorted_list[last_val];
+        // // }
+        // else if (dist1 > dist3)
+        // {
+        //     return sorted_list[last_val];
+        // }
+        // else{
+        //     return sorted_list[last_val-1];
+        // }
+    }
+    // else if( sorted_list[middle] > element)
+    // {
+    //     //printf("Returning High: %u\n", closest_high);       
+    //     //printf("Last Val: %u\n", last_val);
+    //     //    printf("Returning Middle: %u\n", middle);
+    //     //printf("retruning low\n");
+    //     //printf("Less Last Index: %u\n", middle);
+    //     return sorted_list[middle];
+    // }
+    // // else if(sorted_list[middle] > element)
+    // // {
+    // //     //printf("Greater Last Index: %u\n", middle);
+
+    // //     return sorted_list[middle+1];
+    // // }
+    // else   
+    // {
+
+    //     //printf("Returning Low: %u\n", closest_low);
+    //     //printf("Last Val: %u\n", last_val);
+    //     //    printf("Returning Middle: %u\n", middle);
+    //     //printf("returning high\n");
+    //     //printf("Else Last Index: %u\n", middle);
+
+    //     return sorted_list[middle+1];
+
+    // } 
+//    return 0;
+}
+
+int BinarySearch(int sorted_list[], int Value,char *fraction)
+{
+    int first, last, middle;
+    first = 0;
+    last = 101-1;
+    middle = (first+last)/2;
+ 
+    while(first <= last)
+    {
+        if ( sorted_list[middle] < Value )
+        {
+            first = middle + 1;
+        }
+        else if ( sorted_list[middle] == Value )
+        {
+            *fraction = 0;  // Value Matched
+            return middle;
+        }
+        else
+        {
+            last = middle - 1;
+        }
+        middle = (first + last)/2;
+    }
+ 
+    if ( first > last )
+    {
+        int diff = sorted_list[middle+1]-sorted_list[middle];
+        *fraction = (Value-sorted_list[middle])*10/diff;
+    }
+    return middle;
 }
 
 int qsort_compare (const void * elem1, const void * elem2) 

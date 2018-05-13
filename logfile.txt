@@ -1,4 +1,4 @@
-Number of bytes: 1024
+Number of bytes: 8
 Number of segs: 1
-Segment 0 Min: 4109 Max: 33536725
-Run Time: 0.003332
+Segment 0 Min: 2 Max: 128
+Run Time: 0.000238

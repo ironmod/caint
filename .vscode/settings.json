@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "chrono": "c",
+        "limits": "c",
+        "valarray": "c",
+        "cmath": "c",
+        "complex": "c",
+        "cstdlib": "c"
+    }
+}
