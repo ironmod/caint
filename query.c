@@ -23,7 +23,7 @@ char smallFileName[260];
 char line[FILE_SIZE_MAX_BYTES];
 int accum = 0;
 
-uint32_t seg_meta[110][2]; //min/max for each segment file
+uint32_t seg_meta[120][2]; //min/max for each segment file
 
 int main(int argc, char* argv[]) {
     clock_t begin = clock();
@@ -48,13 +48,9 @@ int main(int argc, char* argv[]) {
     // Determine the number of segments the binary file needs to be broken down into (due to RAM restrictions)
     //
     int file_segments = 0;
-    //if(input_file_size > FILE_SIZE_MAX_BYTES)
-    //{
-        file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES); //figure out how many segments this needs to be broken into, +1 for the eof
-        //input_file_size = FILE_SIZE_MAX_BYTES/4;
-    //}
-    //else
-    if(file_segments ==0)
+    file_segments =  (input_file_size/FILE_SIZE_MAX_BYTES); //figure out how many segments this needs to be broken into, +1 for the eof
+
+    if(file_segments == 0)
     {
         file_segments = 1;
         input_file_size = input_file_size/sizeof(uint32_t);
@@ -65,6 +61,8 @@ int main(int argc, char* argv[]) {
     }
     fprintf(qlog_fp, "Number of variables: %u\nNumber of segs: %u\n", input_file_size, file_segments);
     uint32_t user_in_buffer[FILE_SIZE_MAX_BYTES]; //buffer to be used for temp storing of the bins
+    //uint32_t* user_in_buffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
+
 
     FILE *seg_temp;
     //
@@ -88,7 +86,7 @@ int main(int argc, char* argv[]) {
         }
 
         //
-        // Sort the buffer to speed up searching
+        // Sort the buffer - to be used for binary search on readback
         //
         qsort (user_in_buffer, input_file_size, sizeof(uint32_t), qsort_compare);
 
@@ -97,14 +95,12 @@ int main(int argc, char* argv[]) {
 
         fprintf(qlog_fp, "Segment %d Min: %u Max: %u\n", j,  seg_meta[j][0], seg_meta[j][1]);
 
-        //for (int k = 0; k < input_file_size; k++) 
-        //{
-            //printf("%u\n", user_in_buffer[k]);
-            //fprintf(seg_temp, "%u", user_in_buffer[k]); //TODO: need to change this to fwrite for binary
-        fwrite(&user_in_buffer, sizeof(uint32_t), input_file_size, seg_temp);
-        //}
+        fwrite(&user_in_buffer, 2*sizeof(uint32_t), input_file_size, seg_temp);
+
         fclose(seg_temp);
     }
+
+    //qsort (seg_meta, 120, 2*sizeof(uint32_t), qsort_compare);
 
     //
     // Get the user test cases and start looping through each 35k block at a time
@@ -128,28 +124,28 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < num_test_cases; i++) 
-    {
+    {   
         uint32_t query_val = 0;
         scanf("%u", &query_val);
         // Linear scan to find the closest value from inbuffer
         uint32_t closest_val = 0;
         uint32_t closest_dist = 0xFFFFFFFF;
         //
-        // Loop through the entire input file and break the file up into
-        //  smaller segments - if it is more than 35KB
+        // Loop through each segment file - one at a time
+        //  search for the closest value and then update
         //
-        //file_segments = 1;
+        //file_segments = 25;
         for(int j=0; j < file_segments; j++)
         {
             uint32_t closest_seg_val = 0;
             sprintf(smallFileName, "%s%d.bin", segFileName, j);
             seg_temp = fopen(smallFileName, "rb");
-            //seg_temp = fopen("seg_0.bin", "rb");
 
             fseek(seg_temp, 0L, SEEK_END);
-            input_file_size = ftell(seg_temp) / sizeof(uint32_t);
+            input_file_size = ftell(seg_temp) / sizeof(uint32_t); //prevent partial files from failing on readback
             fseek(seg_temp, 0L, SEEK_SET);
-            //input_file_size = FILE_SIZE_MAX_BYTES/sizeof(uint32_t);
+
+            //uint32_t* inbuffer = (uint32_t*)malloc(sizeof(uint32_t) * input_file_size);
 
             if (fread(seg_buffer, sizeof(uint32_t), input_file_size, seg_temp) != input_file_size) 
             {
@@ -157,19 +153,31 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            closest_seg_val = binary_search(seg_buffer, 0, input_file_size, query_val);
-            if(closest_seg_val < closest_dist)
-            {
-                closest_dist = closest_seg_val;
-            }
-            
+            //
+            // Only bother to do the binary search if there is a potential value
+            //  otherwise check to see if we are at the min/max boundary
+            //
+            //if( (query_val >= seg_meta[j][0]) && (query_val <= seg_meta[j][1]) )
+            //{
+                closest_seg_val = binary_search(seg_buffer, 0, input_file_size/2, query_val);
+
+                if(closest_seg_val < closest_dist)
+                {
+                    closest_dist = closest_seg_val;
+                }
+            //}
+            // else if ( query_val < seg_meta[j][0] )
+            // {
+
+            // }
+          //  printf("%u\n", seg_buffer[j]);
             fclose(seg_temp);          
         }
         printf("%u\n", closest_dist);
     }
 
     clock_t end = clock();
-    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    double time_spent = ((double)(end - begin) / CLOCKS_PER_SEC)*2;
     fprintf(qlog_fp, "Run Time: %f", time_spent);
     return 0;
 }
@@ -186,15 +194,16 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
     int last_val = 0;
     int max = high;
     uint32_t dist=0;
-   /* for (int i=0; i<high; i++)
-    {
-        printf("%u\n", sorted_list[i]);
-    }*/
-    //printf("Searching for: %u\n", element);
+  //  printf("Searching for: %u\n", element);
+   // for (int i=0; i<high; i++)
+   // {
+   //     printf("%u\n", sorted_list[i]);
+   // }
+
     while (low <= high)
     {
         middle = low + (high - low)/2;
-        //printf("Mid: %u\n", middle);
+      //  printf("Mid: %u\n", middle);
         if (element > sorted_list[middle])
         {
             last_val = middle;
@@ -209,7 +218,7 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
         }
         else
         {
-            return middle;
+            return sorted_list[middle];
         }
     }
     
@@ -223,8 +232,13 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
     }
     else
     {
-        //determine which point is closer to the element
-        // and return that location
+        //
+        // Determine which point is closer to the element
+        //  Since there is not a way to know 
+        //  on which side of the element is closest - need
+        //  to check all 3 and return the smallest path
+        //  TODO: this should only need 2 distances??
+        //
         uint32_t dist1 = abs( sorted_list[last_val] - element);
         uint32_t dist2 = abs( sorted_list[last_val+1] - element);
         uint32_t dist3 = abs( sorted_list[last_val-1] - element);
@@ -240,7 +254,7 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
             return sorted_list[last_val-1];
     }
 
-    return 0;
+    return -1;
 };
 
 int qsort_compare (const void * elem1, const void * elem2) 

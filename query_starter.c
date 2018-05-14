@@ -11,6 +11,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <time.h>
+int qsort_compare (const void * elem1, const void * elem2) ;
 
 int main(int argc, char* argv[]) {
     clock_t begin = clock();
@@ -47,6 +48,15 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < input_file_size; i++) {
         inbuffer[i] = htonl(inbuffer[i]);
     }
+    
+    qsort (inbuffer, input_file_size, sizeof(uint32_t), qsort_compare);
+
+    FILE *hard_fp = fopen("medium_sorted.txt", "w");
+    // in-place endian swap of all elements
+    for (int i = 0; i < input_file_size; i++) {
+        fprintf(hard_fp, "%u\n", inbuffer[i]);
+    }
+
 
     int num_test_cases = 0;
     scanf("%d", &num_test_cases);
@@ -75,5 +85,14 @@ int main(int argc, char* argv[]) {
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
     printf("Run Time: %f", time_spent);
+    return 0;
+}
+
+int qsort_compare (const void * elem1, const void * elem2) 
+{
+    int first = *((int*)elem1);
+    int second = *((int*)elem2);
+    if (first > second) return  1;
+    if (first < second) return -1;
     return 0;
 }
