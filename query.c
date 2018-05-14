@@ -159,12 +159,16 @@ int main(int argc, char* argv[]) {
             //
             //if( (query_val >= seg_meta[j][0]) && (query_val <= seg_meta[j][1]) )
             //{
-                closest_seg_val = binary_search(seg_buffer, 0, input_file_size/2, query_val);
 
-                if(closest_seg_val < closest_dist)
+                closest_seg_val = binary_search(seg_buffer, 0, input_file_size/2, query_val);
+                uint32_t dist1 = abs(closest_seg_val - query_val);
+                uint32_t dist2 = abs(query_val - closest_dist);
+
+                if(dist1 < dist2)
                 {
                     closest_dist = closest_seg_val;
                 }
+                //printf("SegVal %u\n", closest_seg_val);
             //}
             // else if ( query_val < seg_meta[j][0] )
             // {
@@ -199,7 +203,7 @@ uint32_t binary_search(uint32_t sorted_list[], int low, int high, uint32_t eleme
    // {
    //     printf("%u\n", sorted_list[i]);
    // }
-
+    
     while (low <= high)
     {
         middle = low + (high - low)/2;
